@@ -22,7 +22,7 @@ import time
 import RPi.GPIO
 import NBX_OLED
 import json
-
+import datetime
 
 from PIL import Image
 from PIL import ImageDraw
@@ -103,28 +103,17 @@ x = 0
 # Load default font.
 font = ImageFont.load_default()
 
+
 # Alternatively load a TTF font.  Make sure the .ttf font file is in the same directory as the python script!
 # Some other nice fonts to try: http://www.dafont.com/bitmap.php
-# font = ImageFont.truetype('Minecraftia.ttf', 8)
+# font = ImageFont.truetype('mplus_hzk_12.ttf', 8)
+# hz_font = ImageFont.truetype('mplus_hzk_12.ttf', 18)
+# hz_font = ImageFont.truetype('msyhl.ttc', 22)
 
-while True:
 
-    # Draw a black filled box to clear the image.
-    draw.rectangle((0,0,width,height), outline=0, fill=0)
-    #f = open('/home/pi/ppl/data/snapshot.db', 'r')
-    #sj = f.read()
-    #str_json = json.loads(sj)
-    #stct = str_json["StayCount"]
-    #tti = str_json["TodayTotalIn"]
-    #tto = str_json["TodayTotalOut"]
-    # Shell scripts for system monitoring from here : https://unix.stackexchange.com/questions/119126/command-to-display-memory-usage-disk-usage-and-cpu-load
-    cmd = "cat /sys/class/thermal/thermal_zone0/temp"
-    tmpcore = int(subprocess.check_output(cmd, shell = True ))
-    if(tmpcore > 60000) :
-        RPi.GPIO.output(4, True)
-    if(tmpcore < 45000) :
-        RPi.GPIO.output(4, False)
-    cmd = "hostname -I | cut -d\' \' -f1"
+def display(tmpcore):
+    # cmd = "hostname -I | cut -d\' \' -f1"
+    cmd = "ip addr | grep inet | grep -v inet6  | grep -v '127.0.0.1' | head -n 1 | awk -F ' ' '{print $2}'"
     IP = subprocess.check_output(cmd, shell = True )
     cmd = "top -bn1 | grep load | awk '{printf (\"CPU:%.2f\", $(NF-2))}'"
     CPU = subprocess.check_output(cmd, shell = True )
@@ -132,16 +121,38 @@ while True:
     MemUsage = subprocess.check_output(cmd, shell = True )
     cmd = "df -h | awk '$NF==\"/\"{printf (\" D:%d/%dG\", $3,$2)}'"
     Disk = subprocess.check_output(cmd, shell = True )
-    lt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    lt = time.strftime("%a %m-%d %H:%M:%S", time.localtime())
     # Write two lines of text.
     draw.rectangle((0,0,width,height), outline=0, fill=0)
-
-    draw.text((x, top),     lt,  font=font, fill=255)  #"T:" + 
-    draw.text((x, top+8),       "IP: " + str(IP.decode('utf8').strip()).strip('b'),  font=font, fill=255)
-    draw.text((x, top+16),    str(CPU.decode('utf8').strip()).strip('b') + " CT:" + str(tmpcore/1000), font=font, fill=255)
+    draw.text((x, top), "DT:" + lt,  font=font, fill=255)  #"T:" +
+    draw.text((x, top+8),       "IP:" + str(IP.decode('utf8').strip()).strip('b'),  font=font, fill=255)
+    draw.text((x, top+16),    str(CPU.decode('utf8').strip()).strip('b') + "    " + "CT:{:.3f}".format(tmpcore/1000), font=font, fill=255)
     draw.text((x, top+25),    str(MemUsage.decode('utf8').strip()).strip('b') + " " + str(Disk.decode('utf8').strip()).strip('b'),  font=font, fill=255)
     # Display image.
     disp.image(image)
     disp.display()
-    time.sleep(1)
 
+switch_no = True
+from datetime import datetime
+
+while True:
+    # Draw a black filled box to clear the image.
+    draw.rectangle((0,0,width,height), outline=0, fill=0)
+    cmd = "cat /sys/class/thermal/thermal_zone0/temp"
+    tmpcore = int(subprocess.check_output(cmd, shell = True ))
+    if(tmpcore > 68000) :
+        RPi.GPIO.output(4, True)
+    if(tmpcore < 55000) :
+        RPi.GPIO.output(4, False)
+
+    if 0 <= datetime.now().hour < 8:
+        if switch_no:
+            disp.command(NBX_OLED.SSD1306_DISPLAYOFF)
+            switch_no = False
+        time.sleep(10)
+    else:
+        if not switch_no:
+            disp.command(NBX_OLED.SSD1306_DISPLAYON)
+            switch_no = True
+        display(tmpcore)
+    time.sleep(1)
