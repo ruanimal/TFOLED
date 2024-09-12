@@ -6,3 +6,17 @@ This project is driver and usage of Nabaixin TFOLED, a HAT breakout for raspberr
 
 
 唯一官方淘宝店：[https://keliu.taobao.com/](https://keliu.taobao.com/)
+
+
+## Install
+### Enable I2C
+```
+sudo raspi-config
+# Interfacing Options -> I2c
+```
+
+### Python Packages
+```
+python3 -m virtualenv venv -p python3
+venv/bin/pip install -r requirements.txt
+```
